@@ -1,25 +1,17 @@
 package Recognizer;
 
 import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
-import java.net.ProtocolException;
 import java.net.URL;
 
-import javaFlacEncoder.FLACFileWriter;
-
-import javax.sound.sampled.AudioFormat;
-import javax.sound.sampled.AudioInputStream;
-import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.UnsupportedAudioFileException;
 import javax.xml.bind.DatatypeConverter;
 
 import org.json.JSONObject;
@@ -48,17 +40,6 @@ public class BaiduRcecognizer implements StandardRecognizer {
 	private static final String secretKey = "16d3d4cc27c83cea672c1545a78a1a8a";
 	private static final String cuid = "7824195";
 
-	private static AudioFormat getAudioFormat() {
-		float sampleRate = 16000;
-		int sampleSizeInBits = 16;
-		int channels = 1;
-		boolean signed = true;
-		boolean bigEndian = false;
-		AudioFormat format = new AudioFormat(sampleRate, sampleSizeInBits,
-				channels, signed, bigEndian);
-		return format;
-	}
-
 	private static void getToken() throws Exception {
 		String getTokenURL = "https://openapi.baidu.com/oauth/2.0/token?grant_type=client_credentials"
 				+ "&client_id=" + apiKey + "&client_secret=" + secretKey;
@@ -69,69 +50,77 @@ public class BaiduRcecognizer implements StandardRecognizer {
 
 	private static void method1() throws Exception {
 
-		HttpURLConnection conn = (HttpURLConnection) new URL(serverURL)
-				.openConnection();
-		conn.setRequestMethod("POST");
-		conn.setRequestProperty("Content-Type",
-				"application/json; charset=utf-8");
+		HttpURLConnection conn = null;
+		VoiceActivityDetector vac = null;
+		String tempaudio = "d:/temtaudio.wav";
+		try {
+			conn = (HttpURLConnection) new URL(serverURL).openConnection();
+			conn.setRequestMethod("POST");
+			conn.setRequestProperty("Content-Type",
+					"application/json; charset=utf-8");
 
-		conn.setDoInput(true);
-		conn.setDoOutput(true);
-		DataOutputStream wr = new DataOutputStream(conn.getOutputStream());
+			conn.setDoInput(true);
+			conn.setDoOutput(true);
+			DataOutputStream wr = new DataOutputStream(conn.getOutputStream());
 
-		boolean flag = true;
-		VoiceActivityDetector vac = new VoiceActivityDetector(
-				new LocalMicrophone(), "LocalMicrophone");
-		// get stream from connection
-		// DataOutputStream stream = new
-		// DataOutputStream(conn.getOutputStream());
-		int buffer_size = 4000;
-		byte tempBuffer[] = new byte[buffer_size];
-		FLACFileWriter ffw = new FLACFileWriter();
-		ByteArrayOutputStream boas = new ByteArrayOutputStream();
-		// construct params
-		JSONObject params = new JSONObject();
-		params.put("format", "x-flac");
-		params.put("rate", 16000);
-		params.put("channel", "1");
-		params.put("token", token);
-		params.put("cuid", cuid);
-		params.put("lan", "en");// xiantao added here
-		while (true) {
-			while (flag) {
-				int cnt = -1;
-				cnt = vac.read(tempBuffer, 0, buffer_size);
-				if (cnt > 0) {// if there is data
-					// Printer.reset();
-					ByteArrayInputStream byteInputStream = new ByteArrayInputStream(
-							tempBuffer);
-					AudioInputStream ais = new AudioInputStream(
-							byteInputStream, getAudioFormat(), cnt); // open a
-																		// new
-																		// audiostream
-					try {
-						ffw.write(ais, FLACFileWriter.FLAC, boas);// convert
-																	// audio
-																	// data to
-																	// FLAC
-					} catch (IOException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
+			boolean flag = true;
+			int buffer_size = 4000;
+			byte tempBuffer[] = new byte[buffer_size];
+			// construct params
+			JSONObject params = new JSONObject();
+			params.put("format", "pcm");
+			params.put("rate", 16000);
+			params.put("channel", "1");
+			params.put("token", token);
+			params.put("cuid", cuid);
+			params.put("lan", "en");// xiantao added here
+
+			FileOutputStream fos = null;
+			File audioFile = null;
+
+			vac = new VoiceActivityDetector(new LocalMicrophone(),
+					"LocalMicrophone");
+
+			while (true) {
+				// recode the audio and save to the path "d:/tempautio.wav";
+				fos = new FileOutputStream(tempaudio);
+				while (flag) {
+					int cnt = -1;
+					cnt = vac.read(tempBuffer, 0, buffer_size);
+					if (cnt > 0) {// if there is data
+						fos.write(tempBuffer, 0, cnt);
+					} else {
+						flag = false;
+						fos.flush();
+						fos.close();
 					}
-					params.put("len", boas.size());
-					params.put("speech", DatatypeConverter
-							.printBase64Binary(boas.toByteArray()));
+				}// while
 
-					wr.writeBytes(params.toString());
-					wr.flush();
-					wr.close();
+				// open the audio file.
+				audioFile = new File(tempaudio);
+				long length = audioFile.length();
+				
+				params.put("len", audioFile.length());
+				params.put("speech", DatatypeConverter
+						.printBase64Binary(loadFile(audioFile)));
+				// ((Closeable) audioFile).close();//never sure
+				wr.writeBytes(params.toString());
+				wr.flush();
+				wr.close();
+				printResponse(conn);
 
-					printResponse(conn);
-				} else
-					flag = false;
-			}//while
-		}//while
-	}//method
+			}// while
+		} catch (MalformedURLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+
+		} finally {
+			// vac.close();
+		}
+	}// method
 
 	@Override
 	public Result recognizeFromResult(Result r) {
@@ -164,8 +153,7 @@ public class BaiduRcecognizer implements StandardRecognizer {
 			return "server connected error"; // xiantao added here
 		}
 		InputStream is = conn.getInputStream();
-		BufferedReader rd = new BufferedReader(new InputStreamReader(is,
-				"UTF-8"));// xiantao modified here
+		BufferedReader rd = new BufferedReader(new InputStreamReader(is));// xiantao modified here
 		String line;
 		StringBuffer response = new StringBuffer();
 		while ((line = rd.readLine()) != null) {
@@ -173,7 +161,12 @@ public class BaiduRcecognizer implements StandardRecognizer {
 			response.append('\r');
 		}
 		rd.close();
-		System.out.println(new JSONObject(response.toString()).toString(4));
+		try {
+			//System.out.println(response.toString());
+			System.out.println(new JSONObject(response.toString()).toString(4));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 		return response.toString();
 	}
 
@@ -200,7 +193,4 @@ public class BaiduRcecognizer implements StandardRecognizer {
 		return bytes;
 	}
 
-	public static void main() {
-
-	}
 }
