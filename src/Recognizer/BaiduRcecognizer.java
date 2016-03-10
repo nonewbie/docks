@@ -1,6 +1,7 @@
 package Recognizer;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -12,6 +13,9 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 
+import javax.sound.sampled.AudioFileFormat;
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
 import javax.xml.bind.DatatypeConverter;
 
 import org.json.JSONObject;
@@ -20,7 +24,7 @@ import Data.Result;
 import Frontend.LocalMicrophone;
 import Frontend.VoiceActivityDetector;
 
-public class BaiduRcecognizer implements StandardRecognizer {
+public class BaiduRcecognizer {
 
 	public BaiduRcecognizer() {
 		// TODO Auto-generated constructor stub
@@ -52,7 +56,7 @@ public class BaiduRcecognizer implements StandardRecognizer {
 
 		HttpURLConnection conn = null;
 		VoiceActivityDetector vac = null;
-		String tempaudio = "d:/temtaudio.wav";
+
 		try {
 			conn = (HttpURLConnection) new URL(serverURL).openConnection();
 			conn.setRequestMethod("POST");
@@ -63,53 +67,62 @@ public class BaiduRcecognizer implements StandardRecognizer {
 			conn.setDoOutput(true);
 			DataOutputStream wr = new DataOutputStream(conn.getOutputStream());
 
-			boolean flag = true;
 			int buffer_size = 4000;
-			byte tempBuffer[] = new byte[buffer_size];
-			// construct params
-			JSONObject params = new JSONObject();
-			params.put("format", "pcm");
-			params.put("rate", 16000);
-			params.put("channel", "1");
-			params.put("token", token);
-			params.put("cuid", cuid);
-			params.put("lan", "en");// xiantao added here
 
 			FileOutputStream fos = null;
 			File audioFile = null;
 
 			vac = new VoiceActivityDetector(new LocalMicrophone(),
 					"LocalMicrophone");
+			byte[] tempBuffer = new byte[buffer_size];
+			byte[] streamBuffer = new byte[buffer_size * 50];
+			JSONObject params = null;
+			// while (true) {
+			// construct params
+			params = new JSONObject();
+			params.put("format", "wav");
+			params.put("rate", 16000);
+			params.put("channel", "1");
+			params.put("token", token);
+			params.put("cuid", cuid);
+			params.put("lan", "zh");// xiantao added here
 
-			while (true) {
-				// recode the audio and save to the path "d:/tempautio.wav";
-				fos = new FileOutputStream(tempaudio);
-				while (flag) {
-					int cnt = -1;
-					cnt = vac.read(tempBuffer, 0, buffer_size);
-					if (cnt > 0) {// if there is data
-						fos.write(tempBuffer, 0, cnt);
-					} else {
+			int count = 0;
+			boolean flag = true;
+			String tempaudio = tempfileName();
+			fos = new FileOutputStream(tempaudio);
+			while (flag) {
+				int cnt = -1;
+				cnt = vac.read(tempBuffer, 0, buffer_size);
+				if (cnt > 0) {// if there is data
+					System.arraycopy(tempBuffer, 0, streamBuffer, count, cnt);
+					count += cnt;
+				} else {
+					if (count > 0) {
+						AudioInputStream ais = new AudioInputStream(
+								new ByteArrayInputStream(streamBuffer),
+								vac.getFormat(), count);
 						flag = false;
+						AudioSystem.write(ais, AudioFileFormat.Type.WAVE, fos);
 						fos.flush();
 						fos.close();
 					}
-				}// while
-
-				// open the audio file.
-				audioFile = new File(tempaudio);
-				long length = audioFile.length();
-				
-				params.put("len", audioFile.length());
-				params.put("speech", DatatypeConverter
-						.printBase64Binary(loadFile(audioFile)));
-				// ((Closeable) audioFile).close();//never sure
-				wr.writeBytes(params.toString());
-				wr.flush();
-				wr.close();
-				printResponse(conn);
-
+				}
 			}// while
+
+			// open the audio file.
+			audioFile = new File(tempaudio);
+			// System.out.println("**********len: " + audioFile.length());
+			params.put("len", audioFile.length());
+			params.put("speech",
+					DatatypeConverter.printBase64Binary(loadFile(audioFile)));
+			// ((Closeable) audioFile).close();//never sure
+			wr.writeBytes(params.toString());
+			wr.flush();
+			wr.close();
+			printResponse(conn);
+
+			// }// while
 		} catch (MalformedURLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -117,34 +130,9 @@ public class BaiduRcecognizer implements StandardRecognizer {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 
-		} finally {
-			// vac.close();
 		}
+
 	}// method
-
-	@Override
-	public Result recognizeFromResult(Result r) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public Result recognizeFromFile(String fileName) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public int getReferenceRecognizer() {
-		// TODO Auto-generated method stub
-		return 0;
-	}
-
-	@Override
-	public String getName() {
-		// TODO Auto-generated method stub
-		return null;
-	}
 
 	private static String printResponse(HttpURLConnection conn)
 			throws Exception {
@@ -153,7 +141,8 @@ public class BaiduRcecognizer implements StandardRecognizer {
 			return "server connected error"; // xiantao added here
 		}
 		InputStream is = conn.getInputStream();
-		BufferedReader rd = new BufferedReader(new InputStreamReader(is));// xiantao modified here
+		BufferedReader rd = new BufferedReader(new InputStreamReader(is,
+				"UTF-8"));
 		String line;
 		StringBuffer response = new StringBuffer();
 		while ((line = rd.readLine()) != null) {
@@ -162,7 +151,7 @@ public class BaiduRcecognizer implements StandardRecognizer {
 		}
 		rd.close();
 		try {
-			//System.out.println(response.toString());
+			// System.out.println(response.toString());
 			System.out.println(new JSONObject(response.toString()).toString(4));
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -191,6 +180,29 @@ public class BaiduRcecognizer implements StandardRecognizer {
 
 		is.close();
 		return bytes;
+	}
+
+	public void saveToFile(AudioInputStream audioInputStream, File audioFile,
+			AudioFileFormat.Type fileType) {
+		// reset to the beginnning of the captured data
+		try {
+			audioInputStream.reset();
+		} catch (Exception e) {
+			System.out.println("Unable to reset stream " + e);
+			return;
+		}
+
+		try {
+			if (AudioSystem.write(audioInputStream, fileType, audioFile) == -1) {
+				throw new IOException("Problems writing to file");
+			}
+		} catch (Exception ex) {
+			System.out.println(ex.toString());
+		}
+	}
+
+	private static String tempfileName() {
+		return new String("d:/audio/" + System.currentTimeMillis() + ".wav");
 	}
 
 }
