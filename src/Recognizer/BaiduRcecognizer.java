@@ -2,6 +2,7 @@ package Recognizer;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -20,7 +21,6 @@ import javax.xml.bind.DatatypeConverter;
 
 import org.json.JSONObject;
 
-import Data.Result;
 import Frontend.LocalMicrophone;
 import Frontend.VoiceActivityDetector;
 
@@ -69,9 +69,6 @@ public class BaiduRcecognizer {
 
 			int buffer_size = 4000;
 
-			FileOutputStream fos = null;
-			File audioFile = null;
-
 			vac = new VoiceActivityDetector(new LocalMicrophone(),
 					"LocalMicrophone");
 			byte[] tempBuffer = new byte[buffer_size];
@@ -89,8 +86,9 @@ public class BaiduRcecognizer {
 
 			int count = 0;
 			boolean flag = true;
-			String tempaudio = tempfileName();
-			fos = new FileOutputStream(tempaudio);
+
+			ByteArrayOutputStream boas = new ByteArrayOutputStream();
+
 			while (flag) {
 				int cnt = -1;
 				cnt = vac.read(tempBuffer, 0, buffer_size);
@@ -103,19 +101,28 @@ public class BaiduRcecognizer {
 								new ByteArrayInputStream(streamBuffer),
 								vac.getFormat(), count);
 						flag = false;
-						AudioSystem.write(ais, AudioFileFormat.Type.WAVE, fos);
-						fos.flush();
-						fos.close();
+						AudioSystem.write(ais, AudioFileFormat.Type.WAVE, boas);
+
+						{// save the wav file
+							String tempaudio = new String("d:/audio/"
+									+ System.currentTimeMillis() + ".wav");
+							FileOutputStream fos = new FileOutputStream(
+									tempaudio);
+							AudioSystem.write(ais, AudioFileFormat.Type.WAVE,
+									fos);
+							fos.flush();
+							fos.close();
+						}
+						ais.close();
 					}
 				}
 			}// while
 
-			// open the audio file.
-			audioFile = new File(tempaudio);
 			// System.out.println("**********len: " + audioFile.length());
-			params.put("len", audioFile.length());
+			params.put("len", boas.size());
 			params.put("speech",
-					DatatypeConverter.printBase64Binary(loadFile(audioFile)));
+					DatatypeConverter.printBase64Binary(boas.toByteArray()));
+			boas.close();
 			// ((Closeable) audioFile).close();//never sure
 			wr.writeBytes(params.toString());
 			wr.flush();
@@ -199,10 +206,6 @@ public class BaiduRcecognizer {
 		} catch (Exception ex) {
 			System.out.println(ex.toString());
 		}
-	}
-
-	private static String tempfileName() {
-		return new String("d:/audio/" + System.currentTimeMillis() + ".wav");
 	}
 
 }
