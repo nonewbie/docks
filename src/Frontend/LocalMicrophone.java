@@ -37,8 +37,8 @@ import Utils.Printer;
  */
 public class LocalMicrophone extends AudioInputStream{
 	private static String TAG = "LocalMicrophone";
-
-	private static TargetDataLine line; 
+// xiantao modified here
+	public static TargetDataLine line; 
 	
 	/**
 	 * used internally
