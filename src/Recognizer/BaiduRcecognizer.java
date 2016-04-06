@@ -102,24 +102,26 @@ public class BaiduRcecognizer {
 						flag = false;
 						AudioSystem.write(ais, AudioFileFormat.Type.WAVE, boas);
 
-						if (true){// save the wav file
+						if (true) {// save the wav file
 							AudioInputStream ais2 = new AudioInputStream(
 									new ByteArrayInputStream(streamBuffer),
 									vac.getFormat(), count);
-							String tempaudio = new String("d:/audio/"
-									+ System.currentTimeMillis() + ".wav");
+							String tempaudio = new String(
+									"/home/xiantao/audio/"
+											+ System.currentTimeMillis()
+											+ ".wav");
 							FileOutputStream fos = new FileOutputStream(
 									tempaudio);
-							
+
 							AudioSystem.write(ais2, AudioFileFormat.Type.WAVE,
 									fos);
 							ais2.close();
 							fos.flush();
 							fos.close();
 						}
-						
+
 						ais.close();
-						//vac.close();
+						// vac.close();
 					}
 				}
 			}// while

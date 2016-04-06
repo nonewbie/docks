@@ -21,6 +21,7 @@ public class Tuling {
 	public Tuling(String txt) {
 		// TODO Auto-generated constructor stub
 		this.inTxt = txt;
+		System.out.println(txt);
 	}
 	public Tuling() {
 		// TODO Auto-generated constructor stub
@@ -41,8 +42,9 @@ public class Tuling {
 		conn.setDoInput(true);
 		conn.setDoOutput(true);
 		DataOutputStream wr = new DataOutputStream(conn.getOutputStream());
+		//System.out.println(txt);
 		String encodeTxt = URLEncoder.encode(txt,"utf-8");
-		String post = "key=" + apiKey + "&info=" + encodeTxt; 
+		String post = "key=" + apiKey + "&info=" + encodeTxt + "&userid=123213"; 
 		
 		wr.writeBytes(post);
 		
@@ -55,7 +57,7 @@ public class Tuling {
 		System.out.println("RAW: " + buff);
 		if(this.getErrorCode(buff) == 100000){//class text
 			//System.out.println("code is 100000");
-			return this.getAnswer(buff,"text");
+			return this.getAnswer(buff,"text").replaceAll("<br>", "\n");
 		}else if(this.getErrorCode(buff) == 200000 ){//class url
 			//System.out.println("code is 200000");
 			String url = new JSONObject(buff).getString("url");
@@ -67,10 +69,12 @@ public class Tuling {
 			//System.out.println(new JSONObject(buff).get("list"));
 			//System.out.println(jList.length());
 			String allNews = "";
-			for (int i = 0;i < jList.length();i++){
-				allNews += ((JSONObject) jList.get(i)).get("article") + "\n";
+			Integer i;
+			for ( i = 0;i < jList.length()-1;i++){
+				allNews += i.toString() + ":" + ((JSONObject) jList.get(i)).get("article") + "\n";
 			}
-			return this.getAnswer(buff,"text") + "\n" +allNews;
+			allNews += i.toString() + ":" + ((JSONObject) jList.get(jList.length()-1)).get("article");
+			return this.getAnswer(buff,"text") + ".\n" + allNews;
 		}else if(this.getErrorCode(buff) == 308000){//class recipe
 			JSONArray jList = new JSONObject(buff).getJSONArray("list");
 			//System.out.println(new JSONObject(buff).get("list"));
@@ -104,17 +108,34 @@ public class Tuling {
 		try {
 			RawBaiduRecognizer rbr = new RawBaiduRecognizer();
 			while(true){
+				System.out.println("Press any key to continue");
+				System.in.read(new byte[100]);
 				String baiduResult = rbr.getTxtResultByVac();
 				System.out.println("语音识别结果：" + baiduResult);
 				if(baiduResult.equals("SAY AGAIN")){
 					continue;
 				}
 				System.out.println(new Tuling(baiduResult).getResult());
+				System.out.println("end time :" + System.currentTimeMillis());
 			}
-			
-//			System.out.println(new Tuling("西电的照片").getResult());
-//			System.out.println(new Tuling("").getResult());
-//			System.out.println(new Tuling("西电的照片").getResult());
+//			while(true){
+//				BufferedReader br = new BufferedReader(new InputStreamReader(System.in ));
+//				System.out.println(new Tuling(br.readLine()).getResult());// 1.聊天类
+//			}
+//			System.out.println(new Tuling("你能陪我去跑步吗").getResult());// 1.聊天类
+//			System.out.println(new Tuling("星期日是几号").getResult());// 2.日期查询
+//			System.out.println(new Tuling("帮忙查一下快递：880894304303103401").getResult());// 3.快递类
+//			System.out.println(new Tuling("西安今天的新闻").getResult());// 4.新闻类
+//			System.out.println(new Tuling("西安今天的天气").getResult());// 5.天气类
+//			System.out.println(new Tuling("白头发能拔吗").getResult());// 6.生活百科类
+//			System.out.println(new Tuling("西安今天的新闻").getResult());// 7.飞机票类列车类
+//			System.out.println(new Tuling("伊娃和瓦力").getResult());// 8.知识库类
+//			System.out.println(new Tuling("西安今天的新闻").getResult());// 9.计算器
+//			System.out.println(new Tuling("讲一个冷笑话").getResult());// 10.笑话类
+//			System.out.println(new Tuling("讲一个故事").getResult());// 11.故事类
+//			System.out.println(new Tuling("成语接龙").getResult());// 12.成语接龙
+//			System.out.println(new Tuling("重庆鸡公煲怎么做").getResult());// 13.菜谱类
+//			System.out.println(new Tuling("2015年9月10号是什么星座").getResult());// 14.星座
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
