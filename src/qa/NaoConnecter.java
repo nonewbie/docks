@@ -8,6 +8,7 @@ import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 
+import MicroSoft.FaceDetactor;
 import Recognizer.RawBaiduRecognizer;
 
 public class NaoConnecter {
@@ -116,60 +117,68 @@ public class NaoConnecter {
 			System.out.println("naoconnecter");
 			RawBaiduRecognizer rbr = new RawBaiduRecognizer();
 			NaoConnecter naoConn = new NaoConnecter();
+			Tuling tuling = new Tuling();
+			String toNao = "";
 //			String baiduResult = "test,i just want to test the language";// delete after test
 			while(!naoConn.soc.isClosed()){
-				if(naoConn.br.ready()){//recieve nao's data imform
-					String buff = naoConn.br.readLine();
+				//if(naoConn.br.ready()){//recieve nao's data imform
+				String buff = naoConn.br.readLine();
+				if(buff.equals("STARTRECORD")){
 					System.out.println(buff);
 					String baiduResult = rbr.getTxtResultByVac();
 					System.out.println("语音识别结果：" + baiduResult);
 					
 					if(baiduResult.equals("SAY AGAIN")){
-						//do someting: to nao
 						naoConn.wr.write("没有听清哦");
 						naoConn.wr.flush();
 						continue;
-					}else if(baiduResult.equals("暂停，")){
-						System.out.println("STOPSPEECH");
-						naoConn.wr.write("STOPSPEECH");
-						naoConn.wr.flush();
-//						baiduResult = "test,Without you?I'd be a soul without a purpose. \n "
-//								+ "Without you?I'd be an emotion without a heart \n"
-//								+ "I'm a face without expression,A heart with no beat.\n"
-//								+ " Without you by my side,I'm just a flame without the light";
-						continue;
-					}else if(baiduResult.startsWith("test")){
-						System.out.println("test");
-						naoConn.wr.write(baiduResult);
-						naoConn.wr.flush();
-						baiduResult = "暂停，";
-						continue;
-					}else if(baiduResult.equals("站起来，")){
+					}else if(baiduResult.equals("站起来")){
 						System.out.println("站起来");
 						naoConn.wr.write("WAKEUP");
 						naoConn.wr.flush();
-//						baiduResult = "暂停，";
 						continue;
-					}else if(baiduResult.equals("坐下，")){
+					}else if(baiduResult.equals("坐下")){
 						System.out.println("坐下");
 						naoConn.wr.write("SITDOWN");
 						naoConn.wr.flush();
-//						baiduResult = "暂停，";
 						continue;
-					}else if(baiduResult.equals("闭嘴，")){
+					}else if(baiduResult.equals("调大音量")){
+						System.out.println("调大音量");
+						naoConn.wr.write("SOUNDUP");
+						naoConn.wr.flush();
+						continue;
+					}else if(baiduResult.equals("闭嘴")){
 						System.out.println("闭嘴");
 						naoConn.wr.write("STOPSPEECH");
 						naoConn.wr.flush();
-//						baiduResult = "暂停，";
+						continue;
+					}else if(baiduResult.startsWith("我看起来多大")){
+						System.out.println("我看起来多大");
+						naoConn.wr.write("HOWOLD");
+						naoConn.wr.flush();
 						continue;
 					}
-					String toNao = new Tuling(baiduResult).getResult();
+					toNao = tuling.getResult(baiduResult);
 					System.out.println(toNao + "\n" + new String(toNao.getBytes("utf-8"),"utf-8"));
 					//System.out.println("\nencode type :　" + getEncoding("你妹"));
 					naoConn.wr.write(new String(toNao.getBytes("utf-8"),"utf-8"));
 					//naoConn.wr.write(toNao);
 					naoConn.wr.flush();
-				}//if
+				}else if(buff.startsWith("FACEDETECT")){
+					String picpath = buff.substring(11, buff.length());
+					System.out.println("path：" + picpath);
+					FaceDetactor fd = new FaceDetactor(picpath);
+					fd.getRes();
+					toNao = "没有图片";
+					if(fd.gender.equals("female")){
+						toNao = "美女，你看起来" + fd.age + "岁";
+					}else{
+						toNao = "帅哥，你看起来" + fd.age + "岁";
+					}
+					naoConn.wr.write(new String(toNao.getBytes("utf-8"),"utf-8"));
+					//naoConn.wr.write(toNao);
+					naoConn.wr.flush();
+				}
 			}//while
 		} catch (Exception e) {
 			// TODO Auto-generated catch block

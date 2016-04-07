@@ -15,6 +15,7 @@ import java.net.URL;
 
 import javazoom.jl.player.Player;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 public class BaiduTTS {
@@ -52,8 +53,11 @@ public class BaiduTTS {
 //		// getVoiceFromBrower("呵呵");
 //		getVoice("西安电子科技大学软件学院G520实验室");
 //		playAudio("d:/audio/123.mp3");
-		new BaiduTTS("献涛",true);
-		
+		//new BaiduTTS("献涛",true);
+		String str = "[{\"faceId\":\"c466b74d-1570-41fa-9a86-411d6f137e31\",\"faceRectangle\":{\"top\":66,\"left\":446,\"width\":89,\"height\":89},\"faceAttributes\":{\"gender\":\"female\",\"age\":23.3}}]";
+		System.out.println(str);
+		JSONObject jso = new JSONArray(str).getJSONObject(0);
+		System.out.println(jso.getJSONObject("faceAttributes").getString("gender"));
 	}
 
 	private  void getToken() throws Exception {
