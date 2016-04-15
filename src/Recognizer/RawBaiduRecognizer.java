@@ -4,14 +4,11 @@ import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.URL;
 
 import javax.sound.sampled.AudioFileFormat;
@@ -24,36 +21,63 @@ import org.json.JSONObject;
 import Frontend.LocalMicrophone;
 import Frontend.VoiceActivityDetector;
 
-public class BaiduRcecognizer {
-
-	public BaiduRcecognizer() {
-		// TODO Auto-generated constructor stub
-	}
-
-	public static void main(String[] args) throws Exception {
-		getToken();
-		method1();
-		// method2();
-	}
-
+public class RawBaiduRecognizer {
 	private static final String serverURL = "http://vop.baidu.com/server_api";
 	private static String token = "";
-	// modified here
-	// put your own params here
 	private static final String apiKey = "37UIxlA6yrSZzkyBr7h9GdoO";
 	private static final String secretKey = "16d3d4cc27c83cea672c1545a78a1a8a";
 	private static final String cuid = "7824195";
 
-	private static void getToken() throws Exception {
+	private String getToken() throws Exception {
 		String getTokenURL = "https://openapi.baidu.com/oauth/2.0/token?grant_type=client_credentials"
 				+ "&client_id=" + apiKey + "&client_secret=" + secretKey;
 		HttpURLConnection conn = (HttpURLConnection) new URL(getTokenURL)
 				.openConnection();
-		token = new JSONObject(printResponse(conn)).getString("access_token");
+		return new JSONObject(printResponse(conn)).getString("access_token");
 	}
 
-	private static void method1() {
+	protected String printResponse(HttpURLConnection conn) throws Exception {
+		if (conn.getResponseCode() != 200) {
+			// request error
+			return "server connected error"; // xiantao added here
+		}
+		InputStream is = conn.getInputStream();
+		BufferedReader rd = new BufferedReader(new InputStreamReader(is,
+				"UTF-8"));
+		String line;
+		StringBuffer response = new StringBuffer();
+		while ((line = rd.readLine()) != null) {
+			response.append(line);
+			response.append('\r');
+		}
+		rd.close();
+		try {
+			// System.out.println(response.toString());
+			System.out.println(new JSONObject(response.toString()).toString(4));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return this.full2HalfChange(response.toString());
+	}
 
+	public RawBaiduRecognizer() throws Exception {
+		// TODO Auto-generated constructor stub
+		RawBaiduRecognizer.token = this.getToken();
+	}
+
+	private String getRecognizationResult(String txt) {
+		JSONObject jsonTxt = new JSONObject(txt);
+		// System.out.println(jsonTxt.getJSONArray("result").optString(0,
+		// "null"));
+		if (jsonTxt.isNull("result")) {
+			return "SAY AGAIN";
+		}
+		String str = jsonTxt.getJSONArray("result").optString(0);
+		return str.substring(0, str.length()-1);
+	}
+
+	@SuppressWarnings("resource")
+	public String getTxtResultByVac() {
 		HttpURLConnection conn = null;
 		VoiceActivityDetector vac = null;
 		try {
@@ -61,15 +85,13 @@ public class BaiduRcecognizer {
 			conn.setRequestMethod("POST");
 			conn.setRequestProperty("Content-Type",
 					"application/json; charset=utf-8");
-
 			conn.setDoInput(true);
 			conn.setDoOutput(true);
+
 			DataOutputStream wr = new DataOutputStream(conn.getOutputStream());
-
 			int buffer_size = 4000;
-
-			vac = new VoiceActivityDetector(new LocalMicrophone(),
-					"LocalMicrophone");
+			LocalMicrophone microphone = new LocalMicrophone();
+			vac = new VoiceActivityDetector(microphone, "LocalMicrophone");
 			byte[] tempBuffer = new byte[buffer_size];
 			byte[] streamBuffer = new byte[buffer_size * 50];
 			JSONObject params = null;
@@ -106,10 +128,8 @@ public class BaiduRcecognizer {
 							AudioInputStream ais2 = new AudioInputStream(
 									new ByteArrayInputStream(streamBuffer),
 									vac.getFormat(), count);
-							String tempaudio = new String(
-									"/home/xiantao/audio/"
-											+ System.currentTimeMillis()
-											+ ".wav");
+							String tempaudio = new String("d:/audio/"
+									+ System.currentTimeMillis() + ".wav");
 							FileOutputStream fos = new FileOutputStream(
 									tempaudio);
 
@@ -117,11 +137,10 @@ public class BaiduRcecognizer {
 									fos);
 							ais2.close();
 							fos.flush();
+							System.out.println("upload time :" + System.currentTimeMillis());
 							fos.close();
 						}
-
 						ais.close();
-						// vac.close();
 					}
 				}
 			}// while
@@ -135,86 +154,65 @@ public class BaiduRcecognizer {
 			wr.writeBytes(params.toString());
 			wr.flush();
 			wr.close();
-			printResponse(conn);
-			// }// while
-		} catch (MalformedURLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-
-	}// method
-
-	private static String printResponse(HttpURLConnection conn)
-			throws Exception {
-		if (conn.getResponseCode() != 200) {
-			// request error
-			return "server connected error"; // xiantao added here
-		}
-		InputStream is = conn.getInputStream();
-		BufferedReader rd = new BufferedReader(new InputStreamReader(is,
-				"UTF-8"));
-		String line;
-		StringBuffer response = new StringBuffer();
-		while ((line = rd.readLine()) != null) {
-			response.append(line);
-			response.append('\r');
-		}
-		rd.close();
-		try {
-			System.out.println(response.toString());
-			System.out.println(new JSONObject(response.toString()).toString(4));
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		return response.toString();
-	}
-
-	private static byte[] loadFile(File file) throws IOException {
-		InputStream is = new FileInputStream(file);
-
-		long length = file.length();
-		byte[] bytes = new byte[(int) length];
-
-		int offset = 0;
-		int numRead = 0;
-		while (offset < bytes.length
-				&& (numRead = is.read(bytes, offset, bytes.length - offset)) >= 0) {
-			offset += numRead;
-		}
-
-		if (offset < bytes.length) {
-			is.close();
-			throw new IOException("Could not completely read file "
-					+ file.getName());
-		}
-
-		is.close();
-		return bytes;
-	}
-
-	public void saveToFile(AudioInputStream audioInputStream, File audioFile,
-			AudioFileFormat.Type fileType) {
-		// reset to the beginnning of the captured data
-		try {
-			audioInputStream.reset();
-		} catch (Exception e) {
-			System.out.println("Unable to reset stream " + e);
-			return;
-		}
-
-		try {
-			if (AudioSystem.write(audioInputStream, fileType, audioFile) == -1) {
-				throw new IOException("Problems writing to file");
+			if (Frontend.LocalMicrophone.line.isOpen()) {
+				Frontend.LocalMicrophone.line.close();
 			}
-		} catch (Exception ex) {
-			System.out.println(ex.toString());
+			// vac.close();
+			return getRecognizationResult(printResponse(conn));
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
+	}
+
+	public final String full2HalfChange(String QJstr) {
+		StringBuffer outStrBuf = new StringBuffer("");
+		String Tstr = "";
+		byte[] b = null;
+		for (int i = 0; i < QJstr.length(); i++) {
+			Tstr = QJstr.substring(i, i + 1);
+			// 全角空格转换成半角空格
+			if (Tstr.equals("　")) {
+				outStrBuf.append(" ");
+				continue;
+			}
+
+			try {
+				b = Tstr.getBytes("unicode");
+			} catch (UnsupportedEncodingException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			// 得到 unicode 字节数据
+			if (b[2] == -1) {
+				// 表示全角？
+				b[3] = (byte) (b[3] + 32);
+				b[2] = 0;
+				try {
+					outStrBuf.append(new String(b, "unicode"));
+				} catch (UnsupportedEncodingException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			} else {
+				outStrBuf.append(Tstr);
+			}
+		} // end for.
+		return outStrBuf.toString();
+	}
+
+	public static void main(String[] args) {
+		// TODO Auto-generated method stub
+		try {
+			while (true) {
+				RawBaiduRecognizer rbr = new RawBaiduRecognizer();
+				System.out.println(rbr.getTxtResultByVac());
+				System.in.read(new byte[100]);
+			}
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 	}
 }

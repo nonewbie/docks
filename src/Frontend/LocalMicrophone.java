@@ -37,9 +37,8 @@ import Utils.Printer;
  */
 public class LocalMicrophone extends AudioInputStream{
 	private static String TAG = "LocalMicrophone";
+	public static TargetDataLine line; 
 
-	private static TargetDataLine line; 
-	
 	/**
 	 * used internally
 	 */
@@ -84,9 +83,6 @@ public class LocalMicrophone extends AudioInputStream{
 		Printer.printRedWithTime(TAG,"SPEAK!");
 		line.start();
 		Printer.printWithTime(TAG,"dataline started");
-		
-
-
 	}
 	
 
