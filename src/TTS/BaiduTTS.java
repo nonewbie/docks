@@ -49,18 +49,18 @@ public class BaiduTTS {
 
 	public static void main(String[] args) throws Exception {
 		// TODO Auto-generated method stub
-//		getToken();
-//		// getVoiceFromBrower("呵呵");
-//		getVoice("西安电子科技大学软件学院G520实验室");
-//		playAudio("d:/audio/123.mp3");
-		//new BaiduTTS("献涛",true);
-		String str = "[{\"faceId\":\"c466b74d-1570-41fa-9a86-411d6f137e31\",\"faceRectangle\":{\"top\":66,\"left\":446,\"width\":89,\"height\":89},\"faceAttributes\":{\"gender\":\"female\",\"age\":23.3}}]";
-		System.out.println(str);
-		JSONObject jso = new JSONArray(str).getJSONObject(0);
-		System.out.println(jso.getJSONObject("faceAttributes").getString("gender"));
+		getToken();
+		// getVoiceFromBrower("呵呵");
+		//getVoice("西安电子科技大学软件学院G520实验室");
+		playAudio("d:/audio/123.mp3");
+		new BaiduTTS("献涛",true);
+//		String str = "[{\"faceId\":\"c466b74d-1570-41fa-9a86-411d6f137e31\",\"faceRectangle\":{\"top\":66,\"left\":446,\"width\":89,\"height\":89},\"faceAttributes\":{\"gender\":\"female\",\"age\":23.3}}]";
+//		System.out.println(str);
+//		JSONObject jso = new JSONArray(str).getJSONObject(0);
+//		System.out.println(jso.getJSONObject("faceAttributes").getString("gender"));
 	}
 
-	private  void getToken() throws Exception {
+	private static void  getToken() throws Exception {
 
 		String getTokenURL = "https://openapi.baidu.com/oauth/2.0/token?grant_type=client_credentials"
 				+ "&client_id=" + apiKey + "&client_secret=" + secretKey;
@@ -169,7 +169,7 @@ public class BaiduTTS {
 		}
 	}
 
-	public  void playAudio(String path) {
+	public static  void playAudio(String path) {
 		FileInputStream fis;
 		try {
 			fis = new FileInputStream(path);

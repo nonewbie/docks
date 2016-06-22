@@ -4,7 +4,10 @@ import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
@@ -27,7 +30,7 @@ public class RawBaiduRecognizer {
 	private static final String apiKey = "37UIxlA6yrSZzkyBr7h9GdoO";
 	private static final String secretKey = "16d3d4cc27c83cea672c1545a78a1a8a";
 	private static final String cuid = "7824195";
-
+	public String lan = "zh";//当前的语言环境，默认是中文环境
 	private String getToken() throws Exception {
 		String getTokenURL = "https://openapi.baidu.com/oauth/2.0/token?grant_type=client_credentials"
 				+ "&client_id=" + apiKey + "&client_secret=" + secretKey;
@@ -52,7 +55,7 @@ public class RawBaiduRecognizer {
 		}
 		rd.close();
 		try {
-			// System.out.println(response.toString());
+			//System.out.println(response.toString());
 			System.out.println(new JSONObject(response.toString()).toString(4));
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -65,7 +68,7 @@ public class RawBaiduRecognizer {
 		RawBaiduRecognizer.token = this.getToken();
 	}
 
-	private String getRecognizationResult(String txt) {
+	private String getRecognizationResult(String txt) {//从百度返回的语音结果中提取之别结果。txt:百度返回的文本结果
 		JSONObject jsonTxt = new JSONObject(txt);
 		// System.out.println(jsonTxt.getJSONArray("result").optString(0,
 		// "null"));
@@ -73,11 +76,39 @@ public class RawBaiduRecognizer {
 			return "SAY AGAIN";
 		}
 		String str = jsonTxt.getJSONArray("result").optString(0);
-		return str.substring(0, str.length()-1);
+		return toNum(str.substring(0, str.length()-1));
 	}
-
+	public static String toNum(String str){//将汉字转换成阿拉伯数字,主要在快递查询中只用
+		StringBuffer res = new StringBuffer("");
+		for (int i = 0;i < str.length();i++){
+			if(str.charAt(i) == '一'){
+				res.append('1');
+			}else if(str.charAt(i) == '二'){
+				res.append('2');
+			}else if(str.charAt(i) == '三'){
+				res.append('3');
+			}else if(str.charAt(i) == '四'){
+				res.append('4');
+			}else if(str.charAt(i) == '五'){
+				res.append('5');
+			}else if(str.charAt(i) == '六'){
+				res.append('6');
+			}else if(str.charAt(i) == '七'){
+				res.append('7');
+			}else if(str.charAt(i) == '八'){
+				res.append('8');
+			}else if(str.charAt(i) == '九'){
+				res.append('9');
+			}else if(str.charAt(i) == '零'){
+				res.append('0');
+			}else{
+				res.append(str.charAt(i));
+			}
+		}
+		return res.toString();
+	} 
 	@SuppressWarnings("resource")
-	public String getTxtResultByVac() {
+	public String getTxtResultByVac() {//实时的从电脑麦克风录入语音进行语音识别。
 		HttpURLConnection conn = null;
 		VoiceActivityDetector vac = null;
 		try {
@@ -103,7 +134,11 @@ public class RawBaiduRecognizer {
 			params.put("channel", "1");
 			params.put("token", token);
 			params.put("cuid", cuid);
-			params.put("lan", "zh");// xiantao added here
+			if(this.lan.equals("zh")){//切换语言使用，未来的扩展
+				params.put("lan", "zh");
+			}else if(this.lan.equals("en")){
+				params.put("lan", "en");
+			}
 
 			int count = 0;
 			boolean flag = true;
@@ -166,7 +201,67 @@ public class RawBaiduRecognizer {
 		return null;
 	}
 
-	public final String full2HalfChange(String QJstr) {
+	public String getTxtResultByFile(String testFileName) {//从wav文件进行语音识别
+		try {
+			File wavFile = new File(testFileName);
+			HttpURLConnection conn = (HttpURLConnection) new URL(serverURL)
+					.openConnection();
+			// construct params
+			JSONObject params = new JSONObject();
+			params.put("format", "wav");
+			params.put("rate", 16000);
+			params.put("channel", "1");
+			params.put("token", token);
+			params.put("cuid", cuid);
+			params.put("len", wavFile.length());
+			params.put("speech",
+					DatatypeConverter.printBase64Binary(loadFile(wavFile)));
+
+			// add request header
+			conn.setRequestMethod("POST");
+			conn.setRequestProperty("Content-Type",
+					"application/json; charset=utf-8");
+
+			conn.setDoInput(true);
+			conn.setDoOutput(true);
+
+			// send request
+			DataOutputStream wr = new DataOutputStream(conn.getOutputStream());
+			wr.writeBytes(params.toString());
+			wr.flush();
+			wr.close();
+
+			return getRecognizationResult(printResponse(conn));
+		} catch (Exception e) {
+			System.out.println(e);
+		}
+		return null;
+
+	}
+
+	 private  byte[] loadFile(File file) throws IOException {//加载音频文件
+	        InputStream is = new FileInputStream(file);
+
+	        long length = file.length();
+	        byte[] bytes = new byte[(int) length];
+
+	        int offset = 0;
+	        int numRead = 0;
+	        while (offset < bytes.length
+	                && (numRead = is.read(bytes, offset, bytes.length - offset)) >= 0) {
+	            offset += numRead;
+	        }
+
+	        if (offset < bytes.length) {
+	            is.close();
+	            throw new IOException("Could not completely read file " + file.getName());
+	        }
+
+	        is.close();
+	        return bytes;
+	    }
+	
+	public final String full2HalfChange(String QJstr) {//百度识别返回的结果中有全角的字符，转换成半角。
 		StringBuffer outStrBuf = new StringBuffer("");
 		String Tstr = "";
 		byte[] b = null;
@@ -201,9 +296,16 @@ public class RawBaiduRecognizer {
 		} // end for.
 		return outStrBuf.toString();
 	}
-
-	public static void main(String[] args) {
-		// TODO Auto-generated method stub
+	public static void testRecognizeFromFile(String wavPath){//从录制好的wav语音文件进行测试
+		try {
+				RawBaiduRecognizer rbr = new RawBaiduRecognizer();
+				System.out.println(rbr.getTxtResultByFile(wavPath));
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	public static void testRecognizeFromVac(){//测试从本机电脑进行百度语音识别，原始语音格式目前只支持8k/16k采样率16bit位深的单声道语音
 		try {
 			while (true) {
 				RawBaiduRecognizer rbr = new RawBaiduRecognizer();
@@ -214,5 +316,10 @@ public class RawBaiduRecognizer {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+	}
+	public static void main(String[] args) {
+		// TODO Auto-generated method stub
+		testRecognizeFromVac();
+		//testRecognizeFromFile("D:\\audio\\1461744720790.wav");
 	}
 }

@@ -29,88 +29,7 @@ public class NaoConnecter {
 			e.printStackTrace();
 		}
 	}
-//	public static String getEncoding(String str) {      
-//	       String encode = "GB2312";      
-//	      try {      
-//	          if (str.equals(new String(str.getBytes(encode), encode))) {      
-//	               String s = encode;      
-//	              return s;      
-//	           }      
-//	       } catch (Exception exception) {      
-//	       }      
-//	       encode = "UTF-8";      
-//	      try {      
-//	          if (str.equals(new String(str.getBytes(encode), encode))) {      
-//	               String s1 = encode;      
-//	              return s1;      
-//	           }      
-//	       } catch (Exception exception1) {      
-//	       }      
-//	       encode = "ISO-8859-1";      
-//	      try {      
-//	          if (str.equals(new String(str.getBytes(encode), encode))) {      
-//	               String s2 = encode;      
-//	              return s2;      
-//	           }      
-//	       } catch (Exception exception2) {
-//	       }      
-//	       encode = "GBK";      
-//	      try {      
-//	          if (str.equals(new String(str.getBytes(encode), encode))) {      
-//	               String s3 = encode;      
-//	              return s3;      
-//	           }      
-//	       } catch (Exception exception3) {      
-//	       }      
-//	      return "";      
-//	   }    
-	public static void test(String []args){
-		try {
-			System.out.println("naoconnecter");
-//			RawBaiduRecognizer rbr = new RawBaiduRecognizer();
-			NaoConnecter naoConn = new NaoConnecter();
-			String baiduResult = "test,i just want to test the language";// delete after test
-			while(!naoConn.soc.isClosed()){
-				if(naoConn.br.ready()){//recieve nao's data imform
-					String buff = naoConn.br.readLine();
-					System.out.println(buff);
-//					String baiduResult = rbr.getTxtResultByVac();
-					System.out.println("语音识别结果：" + baiduResult);
-					
-					if(baiduResult.equals("SAY AGAIN")){
-						//do someting: to nao
-						naoConn.wr.write("没有听清哦");
-						naoConn.wr.flush();
-						continue;
-					}else if(baiduResult.equals("暂停，")){
-						System.out.println("STOPSPEECH");
-						naoConn.wr.write("STOPSPEECH");
-						naoConn.wr.flush();
-						baiduResult = "test,Without you?I'd be a soul without a purpose. \n "
-								+ "Without you?I'd be an emotion without a heart \n"
-								+ "I'm a face without expression,A heart with no beat.\n"
-								+ " Without you by my side,I'm just a flame without the light";
-						continue;
-					}else if(baiduResult.startsWith("test")){
-						System.out.println("test");
-						naoConn.wr.write(baiduResult);
-						naoConn.wr.flush();
-						baiduResult = "暂停，";
-						continue;
-					}
-//					String toNao = new Tuling(baiduResult).getResult();
-//					System.out.println(toNao + "\n" + new String(toNao.getBytes("utf-8"),"utf-8"));
-//					//System.out.println("\nencode type :　" + getEncoding("你妹"));
-//					naoConn.wr.write(new String(toNao.getBytes("utf-8"),"utf-8"));
-//					//naoConn.wr.write(toNao);
-//					naoConn.wr.flush();
-				}//if
-			}//while
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-	}
+
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
 		try {
@@ -119,16 +38,28 @@ public class NaoConnecter {
 			NaoConnecter naoConn = new NaoConnecter();
 			Tuling tuling = new Tuling();
 			String toNao = "";
+			String baiduResult;
 			while(!naoConn.soc.isClosed()){
 				//if(naoConn.br.ready()){//recieve nao's data imform
 				String buff = naoConn.br.readLine();
-				if(buff.equals("STARTRECORD")){
+				if(buff== null){//NAO机器人主动断开连接
+					System.out.println("结束！");
+					return ;
+				}
+				//System.in.read(new byte[100]);
+				if(buff.startsWith("STARTRECORD")){
 					System.out.println(buff);
-					String baiduResult = rbr.getTxtResultByVac();
+					if(!buff.equals("STARTRECORD")){//方案二 与nao 对接
+						String wavpath = buff.substring(12, buff.length());
+						System.out.println("path：" + wavpath);
+						baiduResult = rbr.getTxtResultByFile(wavpath);
+					}else{//第一种实现方案
+						baiduResult = rbr.getTxtResultByVac();
+					}
 					System.out.println("语音识别结果：" + baiduResult);
 					
 					if(baiduResult.equals("SAY AGAIN")){
-						naoConn.wr.write("没有听清哦");
+						naoConn.wr.write(" ");
 						naoConn.wr.flush();
 						continue;
 					}else if(baiduResult.equals("站起来")){
@@ -136,6 +67,10 @@ public class NaoConnecter {
 						naoConn.wr.write("WAKEUP");
 						naoConn.wr.flush();
 						continue;
+					}else if(baiduResult.equals("你好")){
+						System.out.println("你好");
+						naoConn.wr.write("WAVERHAND");
+						naoConn.wr.flush();
 					}else if(baiduResult.equals("坐下")){
 						System.out.println("坐下");
 						naoConn.wr.write("SITDOWN");
@@ -146,7 +81,25 @@ public class NaoConnecter {
 						naoConn.wr.write("SOUNDUP");
 						naoConn.wr.flush();
 						continue;
-					}else if(baiduResult.equals("闭嘴")){
+					}else if(baiduResult.equals("调小音量")){
+						System.out.println("调小音量");
+						naoConn.wr.write("SOUNDDOWN");
+						naoConn.wr.flush();
+						continue;
+					}else if(baiduResult.equals("说英语")){
+						rbr.lan = "en";
+						System.out.println("说英语");
+						naoConn.wr.write("INENGLISH");
+						naoConn.wr.flush();
+						continue;
+					}else if(baiduResult.equals("chinese,")){
+						System.out.println(baiduResult);
+						rbr.lan = "zh";
+						System.out.println("说汉语");
+						naoConn.wr.write("INCHINESE");
+						naoConn.wr.flush();
+						continue;
+					}else if(baiduResult.equals("拜拜")){
 						System.out.println("闭嘴");
 						naoConn.wr.write("STOPSPEECH");
 						naoConn.wr.flush();
@@ -171,15 +124,20 @@ public class NaoConnecter {
 					toNao = "没有图片";
 					if(fd.getGender().equals("female")){
 						toNao = "美女，你看起来" + fd.getAge() + "岁";
-					}else{
+					}else if(fd.getGender().equals("male")){
 						toNao = "帅哥，你看起来" + fd.getAge() + "岁";
+					}else{//没有找到识别结果，可能由于是图片没有拍到头像
+						toNao = "对不起，没有拍到你的头像";
 					}
 					naoConn.wr.write(new String(toNao.getBytes("utf-8"),"utf-8"));
 					//naoConn.wr.write(toNao);
 					naoConn.wr.flush();
 				}
 			}//while
-		}catch (Exception e) {
+		}catch(NullPointerException e){
+			e.printStackTrace();
+		}
+		catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}

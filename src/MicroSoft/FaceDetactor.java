@@ -1,11 +1,9 @@
 package MicroSoft;
 
-import java.io.DataInputStream;
 import java.io.File;
-import java.io.FileOutputStream;
-import java.net.ServerSocket;
-import java.net.Socket;
+import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -25,7 +23,7 @@ public class FaceDetactor {
 	private String path;
 	public FaceDetactor(String path){
 		this.path = path;
-		this.gender = null;
+		this.gender = ("NULL");
 		this.age = 0;
 	}
 	public double getAge(){
@@ -67,13 +65,17 @@ public class FaceDetactor {
 				System.out.println("age: " + this.age);
 				System.out.println("end time :" + System.currentTimeMillis());
 			}
-		} catch (Exception e) {
+		} catch (org.json.JSONException e) {//由于没有拍到脸
+			//e.printStackTrace();
+		}catch (IOException e) {
+			e.printStackTrace();
+		}catch (URISyntaxException e) {
 			e.printStackTrace();
 		}
 	}
 	public static void main(String[] args) {
 		try {
-			FaceDetactor fd = new FaceDetactor("d:/audio/detection1.jpg");//d:/audio/detection1.jpg
+			FaceDetactor fd = new FaceDetactor("D:\\VMshare\\audio\\face0.png");//d:/audio/detection1.jpg
 			fd.getRes();
 		} catch (Exception e) {
 			System.out.println(e.getMessage());
